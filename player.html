@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>尾牙 Quiz｜玩家</title>
+  <style>
+    :root{ --bg:#0b1020; --card:#121a33; --text:#eaf0ff; --muted:#a9b4d6; --accent:#7c5cff; --good:#22c55e; --bad:#ef4444; }
+    body{ margin:0; font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif; background:var(--bg); color:var(--text); padding:20px; }
+    .card{ max-width:720px; margin:0 auto; background:rgba(18,26,51,.92); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:18px; }
+    h1{ margin:0 0 10px; font-size:20px; }
+    .muted{ color:var(--muted); font-size:14px; }
+    input{ width:100%; box-sizing:border-box; padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.18); color:var(--text); outline:none; margin:8px 0 12px; }
+    .q{ font-size:18px; margin:14px 0 10px; line-height:1.4; }
+    .opts{ display:grid; gap:10px; }
+    button.opt{ text-align:left; padding:14px; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.06); color:var(--text); cursor:pointer; }
+    button.opt[disabled]{ cursor:not-allowed; opacity:.9; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-top:14px; }
+    .btn{ border:0; background:var(--accent); color:#fff; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:700; }
+    .btn.secondary{ background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.12); }
+    .pill{ display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); font-size:13px; margin-right:8px; margin-top:8px; }
+    .good{ border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.12); }
+    .bad{ border-color:rgba(239,68,68,.35); background:rgba(239,68,68,.12); }
+    .hide{ display:none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>尾牙快問快答（玩家）</h1>
+    <div class="muted">輸入名字後開始。完成 5 題會自動交卷上榜。</div>
+
+    <label class="muted">你的名字</label>
+    <input id="name" placeholder="例如：阿翰" maxlength="24" />
+
+    <div class="pill">場次：<b id="sessionLabel">-</b></div>
+    <div class="pill">題目：<b id="qLabel">1/5</b></div>
+    <div class="pill">分數：<b id="scoreLabel">0</b></div>
+
+    <div id="gameArea" class="hide">
+      <div class="q" id="question"></div>
+      <div class="opts" id="options"></div>
+      <div id="feedback"></div>
+
+      <div class="row">
+        <button class="btn secondary" id="restart">重來（不送出）</button>
+        <button class="btn" id="next" disabled>下一題</button>
+      </div>
+    </div>
+
+    <div id="doneArea" class="hide">
+      <div class="q">✅ 已交卷！</div>
+      <div class="muted" id="doneText"></div>
+      <div class="row">
+        <button class="btn" id="playAgain">再玩一次</button>
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:12px;">如果你是用 QR code 進來，場次會自動帶入。</div>
+  </div>
+
+  <script type="module">
+    // ---------- 1) 你的題庫（可加到爆） ----------
+    const QUESTION_BANK = [
+      { q: "尾牙常見的『摸彩』英文比較接近哪個？", opts: ["Raffle", "Waffle", "Shuffle", "Ruffle"], answer: 0 },
+      { q: "公司聚餐最怕遇到的狀況是？", opts: ["同事太嗨", "老闆敬酒", "麥克風點名", "以上皆是"], answer: 3 },
+      { q: "以下哪個是『最像尾牙』的聲音？", opts: ["叮咚", "咚咚", "恭喜恭喜", "請把掌聲給自己"], answer: 3 },
+      { q: "抽到最大獎的最佳反應是？", opts: ["低調微笑", "現場跳舞", "先看能不能換現金", "立刻請假明天不來"], answer: 0 },
+      { q: "尾牙遊戲精神的核心是？", opts: ["團隊合作", "快樂就好", "勝負欲爆棚", "獎品至上"], answer: 1 },
+      { q: "主持人喊『再來一次』通常代表？", opts: ["時間還夠", "大家太安靜", "獎品還沒送完", "以上皆是"], answer: 3 },
+      { q: "尾牙最常見的神秘生物是？", opts: ["準時下班的人", "不怕上台的人", "抽不到獎的人", "喝水的人"], answer: 2 },
+      { q: "當你被點上台，最該先做的是？", opts: ["深呼吸", "看地板", "找出口", "打開備忘錄查稿"], answer: 0 },
+      { q: "『團體遊戲』最常見的真相是？", opts: ["友情升溫", "戰火升溫", "規則沒人懂", "以上皆是"], answer: 3 },
+      { q: "尾牙抽獎的心理學是？", opts: ["期望值管理", "量子波動", "玄學", "三者皆是"], answer: 3 },
+    ];
+
+    function shuffle(a){
+      a = [...a];
+      for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]]=[a[j],a[i]];
+      }
+      return a;
+    }
+    function pick5(){
+      return shuffle(QUESTION_BANK).slice(0,5);
+    }
+
+    // ---------- 2) Firebase ----------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getDatabase, ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+    const firebaseConfig = {
+      // TODO: 貼上你自己的 firebaseConfig
+      // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDLbTpudq0IiS9Usb4Gj6s93YfShCRl6rY",
+  authDomain: "krafton-tw.firebaseapp.com",
+  databaseURL: "https://krafton-tw-default-rtdb.firebaseio.com",
+  projectId: "krafton-tw",
+  storageBucket: "krafton-tw.firebasestorage.app",
+  messagingSenderId: "356827052139",
+  appId: "1:356827052139:web:49962a5f80327144bc992e",
+  measurementId: "G-XEW4Q3R3CB"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "YOUR_PROJECT",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+    await signInAnonymously(auth);
+
+    // ---------- 3) 場次 ----------
+    const params = new URLSearchParams(location.search);
+    const sessionId = params.get("s") || "default";
+    document.getElementById("sessionLabel").textContent = sessionId;
+
+    // ---------- 4) 遊戲狀態 ----------
+    let quiz = pick5();
+    let idx = 0;
+    let score = 0;
+    let locked = false;
+    let startedAt = null;
+
+    const $name = document.getElementById("name");
+    const $gameArea = document.getElementById("gameArea");
+    const $doneArea = document.getElementById("doneArea");
+    const $question = document.getElementById("question");
+    const $options = document.getElementById("options");
+    const $feedback = document.getElementById("feedback");
+    const $next = document.getElementById("next");
+    const $restart = document.getElementById("restart");
+    const $playAgain = document.getElementById("playAgain");
+    const $qLabel = document.getElementById("qLabel");
+    const $scoreLabel = document.getElementById("scoreLabel");
+    const $doneText = document.getElementById("doneText");
+
+    function updateHUD(){
+      $qLabel.textContent = `${idx+1}/5`;
+      $scoreLabel.textContent = String(score);
+    }
+
+    function ensureStart(){
+      const n = ($name.value||"").trim();
+      if(!n) return false;
+      if(!startedAt) startedAt = Date.now();
+      $gameArea.classList.remove("hide");
+      return true;
+    }
+
+    function render(){
+      locked = false;
+      $next.disabled = true;
+      $feedback.innerHTML = "";
+      updateHUD();
+
+      const item = quiz[idx];
+      $question.textContent = item.q;
+      $options.innerHTML = "";
+
+      item.opts.forEach((txt, i)=>{
+        const b = document.createElement("button");
+        b.className = "opt";
+        b.textContent = `${String.fromCharCode(65+i)}. ${txt}`;
+        b.onclick = () => choose(i);
+        $options.appendChild(b);
+      });
+    }
+
+    function choose(i){
+      if(!ensureStart()) {
+        alert("請先輸入名字再開始！");
+        return;
+      }
+      if(locked) return;
+      locked = true;
+
+      const item = quiz[idx];
+      const btns = [...document.querySelectorAll(".opt")];
+      btns.forEach(b=>b.disabled=true);
+
+      const ok = (i === item.answer);
+      if(ok) score++;
+
+      btns[item.answer].style.borderColor = "rgba(34,197,94,.6)";
+      btns[item.answer].style.background = "rgba(34,197,94,.12)";
+      if(!ok){
+        btns[i].style.borderColor = "rgba(239,68,68,.6)";
+        btns[i].style.background = "rgba(239,68,68,.12)";
+      }
+
+      $feedback.innerHTML = `
+        <div class="pill ${ok ? "good":"bad"}">${ok ? "✅ 答對":"❌ 答錯"}</div>
+        <div class="pill">目前分數：<b>${score}</b></div>
+      `;
+
+      $next.disabled = false;
+      updateHUD();
+    }
+
+    async function submit(){
+      const name = ($name.value||"").trim().slice(0,24);
+      const timeSec = Math.max(0, Math.floor((Date.now() - startedAt)/1000));
+
+      const payload = {
+        name,
+        score,
+        timeSec,
+        submittedAt: serverTimestamp(),
+        clientSubmittedAt: Date.now()
+      };
+
+      await push(ref(db, `sessions/${sessionId}/submissions`), payload);
+
+      $gameArea.classList.add("hide");
+      $doneArea.classList.remove("hide");
+      $doneText.textContent = `你的成績：${score}/5，用時 ${timeSec}s。可以去看投影排行榜啦～`;
+    }
+
+    $next.onclick = async () => {
+      if(idx < 4){
+        idx++;
+        render();
+      }else{
+        // 交卷
+        $next.disabled = true;
+        await submit();
+      }
+    };
+
+    $restart.onclick = () => {
+      quiz = pick5();
+      idx = 0;
+      score = 0;
+      locked = false;
+      startedAt = null;
+      $doneArea.classList.add("hide");
+      $gameArea.classList.remove("hide");
+      render();
+    };
+
+    $playAgain.onclick = () => {
+      quiz = pick5();
+      idx = 0;
+      score = 0;
+      locked = false;
+      startedAt = null;
+      $doneArea.classList.add("hide");
+      $gameArea.classList.remove("hide");
+      render();
+    };
+
+    // init
+    render();
+  </script>
+</body>
+</html>
