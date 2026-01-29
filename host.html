@@ -88,12 +88,9 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth(app);
-    await signInAnonymously(auth);
+const db = getDatabase(app);
+const auth = getAuth(app);
+await signInAnonymously(auth);
 
     const $sessionId = document.getElementById("sessionId");
     const $apply = document.getElementById("apply");
@@ -196,5 +193,6 @@ const analytics = getAnalytics(app);
   </script>
 </body>
 </html>
+
 
 
