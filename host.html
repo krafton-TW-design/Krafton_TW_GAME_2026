@@ -168,20 +168,28 @@ const analytics = getAnalytics(app);
       $link.textContent = url;
     }
 
-    function watch(sessionId){
-      if(unsub) unsub(); // 解除舊監聽
-      const submissionsRef = ref(db, `sessions/${sessionId}/submissions`);
+    function watch(sessionId) {
+  if (unsub) {
+    try { unsub(); } catch(e) {}
+  }
 
-      // onValue 會回傳解除函數（不同版本行為略有差異），我們用包裝保險
-      const off = onValue(submissionsRef, (snap)=>{
-        const val = snap.val() || {};
-        const arr = Object.values(val);
-        renderBoard(sortResults(arr));
-      });
-      unsub = () => { try{ off(); }catch{} };
+  const submissionsRef = ref(db, "sessions/" + sessionId + "/submissions");
 
-      renderQR(playerUrlFor(sessionId));
-    }
+  unsub = onValue(submissionsRef, function(snapshot) {
+    const val = snapshot.val() || {};
+    const arr = Object.values(val);
+
+    arr.sort(function(a, b) {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.timeSec - b.timeSec;
+    });
+
+    renderBoard(arr);
+  });
+
+  const url = playerUrlFor(sessionId);
+  renderQR(url);
+}
 
     $apply.onclick = () => {
       const s = ($sessionId.value || "").trim();
@@ -203,3 +211,4 @@ const analytics = getAnalytics(app);
   </script>
 </body>
 </html>
+
