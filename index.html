@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>尾牙小遊戲</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#111; color:#fff; padding:20px; }
+    .card { max-width:500px; margin:0 auto; background:#1c1c1c; padding:20px; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+    h1 { font-size:24px; text-align:center; }
+    .question { margin:20px 0; font-size:18px; }
+    button { width:100%; padding:12px; margin:8px 0; border:none; border-radius:12px; font-size:16px; cursor:pointer; }
+    button.choice { background:#2a2a2a; color:#fff; }
+    button.choice:hover { background:#3a3a3a; }
+    #next { background:#4ade80; color:#000; display:none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🎉 尾牙快問快答</h1>
+    <div id="game">
+      <div class="question" id="question"></div>
+      <div id="choices"></div>
+      <button id="next" onclick="nextQuestion()">下一題</button>
+    </div>
+    <div id="end" style="display:none; text-align:center;">
+      <h2>✅ 本回合完成</h2>
+      <p>你答對 <span id="score"></span> 題</p>
+    </div>
+  </div>
+
+<script>
+const questions = [
+  { q: "公司成立幾年了？", c: ["3 年", "5 年", "10 年", "20 年"], a: 1 },
+  { q: "最常加班的月份？", c: ["1 月", "6 月", "9 月", "12 月"], a: 3 },
+  { q: "公司最多人的部門？", c: ["工程", "設計", "行銷", "營運"], a: 0 },
+  { q: "尾牙最期待的是？", c: ["抽獎", "表演", "吃飯", "下班"], a: 0 },
+  { q: "老闆最常說的話？", c: ["很簡單", "快一點", "再看看", "都有"], a: 3 }
+];
+
+let index = 0;
+let score = 0;
+
+const qEl = document.getElementById('question');
+const cEl = document.getElementById('choices');
+const nextBtn = document.getElementById('next');
+
+function loadQuestion() {
+  const current = questions[index];
+  qEl.textContent = `Q${index+1}. ${current.q}`;
+  cEl.innerHTML = '';
+  nextBtn.style.display = 'none';
+
+  current.c.forEach((text, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.textContent = text;
+    btn.onclick = () => selectAnswer(i);
+    cEl.appendChild(btn);
+  });
+}
+
+function selectAnswer(i) {
+  const correct = questions[index].a;
+  const buttons = document.querySelectorAll('.choice');
+
+  buttons.forEach((b, idx) => {
+    b.disabled = true;
+    if (idx === correct) {
+      b.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+      b.style.color = '#000';
+      b.innerHTML += ' ✔';
+    }
+    if (idx === i && i !== correct) {
+      b.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+      b.style.color = '#fff';
+      b.innerHTML += ' ✖';
+    }
+  });
+
+  if (i === correct) score++;
+  nextBtn.style.display = 'block';
+}
+
+function nextQuestion() {
+  index++;
+  if (index < questions.length) {
+    loadQuestion();
+  } else {
+    document.getElementById('game').style.display = 'none';
+    document.getElementById('end').style.display = 'block';
+    document.getElementById('score').textContent = score;
+  }
+}
+
+loadQuestion();
+</script>
+</body>
+</html>
