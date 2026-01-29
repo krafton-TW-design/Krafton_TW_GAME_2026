@@ -68,30 +68,31 @@
   <!-- QRCode 產生器（免費 CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
+  <!-- ⚠️ 整份檔案只保留這一個 module script，避免重複宣告 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
-    // ✅ TODO：把這段換成你 Firebase Console 的 Web app 設定
-const firebaseConfig = {
-  apiKey: "AIzaSyDLbTpudq0Iis9Usb4G6js93YFShCRl6rY",
-  authDomain: "krafton-tw.firebaseapp.com",
-  databaseURL: "https://krafton-tw-default-rtdb.firebaseio.com",
-  projectId: "krafton-tw",
-  storageBucket: "krafton-tw.appspot.com",
-  messagingSenderId: "356827052139",
-  appId: "1:356827052139:web:49962a5f80327144bc992e",
-  measurementId: "G-XEW4Q3R3CB"
-};
+    // Firebase Console 的 Web app 設定（你這份已經是正確的）
+    const firebaseConfig = {
+      apiKey: "AIzaSyDLbTpudq0Iis9Usb4G6js93YFShCRl6rY",
+      authDomain: "krafton-tw.firebaseapp.com",
+      databaseURL: "https://krafton-tw-default-rtdb.firebaseio.com",
+      projectId: "krafton-tw",
+      storageBucket: "krafton-tw.appspot.com",
+      messagingSenderId: "356827052139",
+      appId: "1:356827052139:web:49962a5f80327144bc992e",
+      measurementId: "G-XEW4Q3R3CB"
+    };
 
+    // 初始化（只一次）
+    const firebaseApp = initializeApp(firebaseConfig);
+    const db = getDatabase(firebaseApp);
+    const auth = getAuth(firebaseApp);
+    await signInAnonymously(auth);
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const auth = getAuth(app);
-await signInAnonymously(auth);
-
+    // DOM refs
     const $sessionId = document.getElementById("sessionId");
     const $apply = document.getElementById("apply");
     const $reset = document.getElementById("reset");
@@ -104,13 +105,13 @@ await signInAnonymously(auth);
 
     function sortResults(arr){
       return arr.sort((a,b)=>{
-        if(b.score !== a.score) return b.score - a.score;
-        return a.timeSec - b.timeSec;
+        if((b.score ?? 0) !== (a.score ?? 0)) return (b.score ?? 0) - (a.score ?? 0);
+        return (a.timeSec ?? 999999) - (b.timeSec ?? 999999);
       });
     }
 
     function escapeHtml(s){
-      return String(s).replace(/[&<>"']/g, (m)=>({
+      return String(s ?? "").replace(/[&<>"']/g, (m)=>({
         "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
       }[m]));
     }
@@ -133,7 +134,7 @@ await signInAnonymously(auth);
         li.innerHTML = `
           <div>
             <div><b class="mono">#${i+1}</b> ${escapeHtml(r.name || "（未命名）")}</div>
-            <div class="muted mono">${r.score}/5 · ${r.timeSec}s</div>
+            <div class="muted mono">${r.score ?? 0}/5 · ${(r.timeSec ?? 0)}s</div>
           </div>
           <div class="muted mono">${new Date(r.clientSubmittedAt || Date.now()).toLocaleTimeString()}</div>
         `;
@@ -141,10 +142,9 @@ await signInAnonymously(auth);
       });
     }
 
-    function playerUrlFor(sessionId){
-      // 假設 player.html 和 host.html 放同個資料夾
+    function playerUrlFor(sid){
       const base = location.href.replace(/host\.html.*$/i, "");
-      return `${base}player.html?s=${encodeURIComponent(sessionId)}`;
+      return `${base}player.html?s=${encodeURIComponent(sid)}`;
     }
 
     function renderQR(url){
@@ -155,19 +155,17 @@ await signInAnonymously(auth);
       $link.textContent = url;
     }
 
-    function watch(sessionId){
+    function watch(sid){
       if(unsub){
         try{ unsub(); }catch(e){}
       }
-
-      const submissionsRef = ref(db, `sessions/${sessionId}/submissions`);
+      const submissionsRef = ref(db, `sessions/${sid}/submissions`);
       unsub = onValue(submissionsRef, (snap)=>{
         const val = snap.val() || {};
         const arr = Object.values(val);
         renderBoard(sortResults(arr));
       });
-
-      renderQR(playerUrlFor(sessionId));
+      renderQR(playerUrlFor(sid));
     }
 
     $apply.onclick = () => {
@@ -183,16 +181,14 @@ await signInAnonymously(auth);
       await remove(ref(db, `sessions/${sessionId}/submissions`));
     };
 
-    // 預設給一個場次（自動帶入日期）
+    // 預設場次
     const d = new Date();
     const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
     $sessionId.value = `${ymd}-TAILYA`;
 
-    // 預設先套用，打開就有 QR
-    watch($sessionId.value);
+    // 打開就先產生 QR 並開始監聽
+    sessionId = $sessionId.value;
+    watch(sessionId);
   </script>
 </body>
 </html>
-
-
-
