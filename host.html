@@ -74,24 +74,17 @@
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
     // ✅ TODO：把這段換成你 Firebase Console 的 Web app 設定
-    // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDLbTpudq0IiS9Usb4Gj6s93YfShCRl6rY",
+    const firebaseConfig = {
+  apiKey: "AIzaSyDLbTpudq0Iis9Usb4G6js93YFShCRl6rY",
   authDomain: "krafton-tw.firebaseapp.com",
   databaseURL: "https://krafton-tw-default-rtdb.firebaseio.com",
   projectId: "krafton-tw",
-  storageBucket: "krafton-tw.firebasestorage.app",
+  storageBucket: "krafton-tw.appspot.com",
   messagingSenderId: "356827052139",
   appId: "1:356827052139:web:49962a5f80327144bc992e",
   measurementId: "G-XEW4Q3R3CB"
 };
+
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -203,3 +196,4 @@ const analytics = getAnalytics(app);
   </script>
 </body>
 </html>
+
