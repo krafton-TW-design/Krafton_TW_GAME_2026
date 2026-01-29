@@ -1,194 +1,99 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>尾牙 Quiz｜主持端</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>尾牙小遊戲</title>
   <style>
-    :root{ --bg:#0b1020; --card:#121a33; --text:#eaf0ff; --muted:#a9b4d6; --accent:#7c5cff; }
-    body{ margin:0; font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif; background:var(--bg); color:var(--text); padding:20px; }
-    .wrap{ max-width:1100px; margin:0 auto; display:grid; grid-template-columns: 1.1fr .9fr; gap:14px; }
-    @media (max-width: 980px){ .wrap{ grid-template-columns:1fr; } }
-    .card{ background:rgba(18,26,51,.92); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px; }
-    h1{ margin:0 0 8px; font-size:20px; }
-    .muted{ color:var(--muted); font-size:14px; }
-    input{ width:100%; box-sizing:border-box; padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.18); color:var(--text); outline:none; margin:8px 0 12px; }
-    .btn{ border:0; background:var(--accent); color:#fff; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:700; }
-    .btn.secondary{ background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.12); }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .list{ margin:10px 0 0; padding:0; list-style:none; display:grid; gap:10px; }
-    .li{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.06); }
-    .mono{ font-variant-numeric: tabular-nums; font-feature-settings:"tnum" 1; }
-    #qrcode{ background:#fff; padding:10px; border-radius:12px; display:inline-block; }
-    .big{ font-size:24px; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#111; color:#fff; padding:20px; }
+    .card { max-width:500px; margin:0 auto; background:#1c1c1c; padding:20px; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+    h1 { font-size:24px; text-align:center; }
+    .question { margin:20px 0; font-size:18px; }
+    button { width:100%; padding:12px; margin:8px 0; border:none; border-radius:12px; font-size:16px; cursor:pointer; }
+    button.choice { background:#2a2a2a; color:#fff; }
+    button.choice:hover { background:#3a3a3a; }
+    #next { background:#4ade80; color:#000; display:none; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>主持端｜即時排行榜</h1>
-      <div class="muted">排序規則：分數高優先，同分用時短優先。</div>
-
-      <div class="row">
-        <div style="flex:1">
-          <div class="muted">場次代碼（建議用日期或部門名）</div>
-          <input id="sessionId" placeholder="例如：2026-TAILYA-A" />
-        </div>
-        <div style="min-width:180px">
-          <div class="muted">目前人數</div>
-          <div class="big mono" id="count">0</div>
-        </div>
-      </div>
-
-      <div class="row">
-        <button class="btn" id="apply">套用場次</button>
-        <button class="btn secondary" id="reset">清空本場成績</button>
-      </div>
-
-      <ul class="list" id="board"></ul>
-
-      <div class="muted" style="margin-top:10px">
-        若「套用場次」沒反應，請看 Console 是否有 firebaseConfig 或權限錯誤。
-      </div>
+  <div class="card">
+    <h1>🎉 尾牙快問快答</h1>
+    <div id="game">
+      <div class="question" id="question"></div>
+      <div id="choices"></div>
+      <button id="next" onclick="nextQuestion()">下一題</button>
     </div>
-
-    <div class="card">
-      <h1>玩家入口（QR code）</h1>
-      <div class="muted">投影這個，大家掃了就能作答。</div>
-
-      <div style="margin:12px 0">
-        <div id="qrcode"></div>
-      </div>
-
-      <div class="muted">玩家連結：</div>
-      <div class="mono" id="link" style="word-break:break-all; margin-top:6px;"></div>
+    <div id="end" style="display:none; text-align:center;">
+      <h2>✅ 本回合完成</h2>
+      <p>你答對 <span id="score"></span> 題</p>
     </div>
   </div>
 
-  <!-- QRCode 產生器（免費 CDN） -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+const questions = [
+  { q: "公司成立幾年了？", c: ["3 年", "5 年", "10 年", "20 年"], a: 1 },
+  { q: "最常加班的月份？", c: ["1 月", "6 月", "9 月", "12 月"], a: 3 },
+  { q: "公司最多人的部門？", c: ["工程", "設計", "行銷", "營運"], a: 0 },
+  { q: "尾牙最期待的是？", c: ["抽獎", "表演", "吃飯", "下班"], a: 0 },
+  { q: "老闆最常說的話？", c: ["很簡單", "快一點", "再看看", "都有"], a: 3 }
+];
 
-  <!-- ⚠️ 整份檔案只保留這一個 module script，避免重複宣告 -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+let index = 0;
+let score = 0;
 
-    // Firebase Console 的 Web app 設定（你這份已經是正確的）
-    const firebaseConfig = {
-      apiKey: "AIzaSyDLbTpudq0Iis9Usb4G6js93YFShCRl6rY",
-      authDomain: "krafton-tw.firebaseapp.com",
-      databaseURL: "https://krafton-tw-default-rtdb.firebaseio.com",
-      projectId: "krafton-tw",
-      storageBucket: "krafton-tw.appspot.com",
-      messagingSenderId: "356827052139",
-      appId: "1:356827052139:web:49962a5f80327144bc992e",
-      measurementId: "G-XEW4Q3R3CB"
-    };
+const qEl = document.getElementById('question');
+const cEl = document.getElementById('choices');
+const nextBtn = document.getElementById('next');
 
-    // 初始化（只一次）
-    const firebaseApp = initializeApp(firebaseConfig);
-    const db = getDatabase(firebaseApp);
-    const auth = getAuth(firebaseApp);
-    await signInAnonymously(auth);
+function loadQuestion() {
+  const current = questions[index];
+  qEl.textContent = `Q${index+1}. ${current.q}`;
+  cEl.innerHTML = '';
+  nextBtn.style.display = 'none';
 
-    // DOM refs
-    const $sessionId = document.getElementById("sessionId");
-    const $apply = document.getElementById("apply");
-    const $reset = document.getElementById("reset");
-    const $board = document.getElementById("board");
-    const $count = document.getElementById("count");
-    const $link = document.getElementById("link");
+  current.c.forEach((text, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.textContent = text;
+    btn.onclick = () => selectAnswer(i);
+    cEl.appendChild(btn);
+  });
+}
 
-    let unsub = null;
-    let sessionId = "";
+function selectAnswer(i) {
+  const correct = questions[index].a;
+  const buttons = document.querySelectorAll('.choice');
 
-    function sortResults(arr){
-      return arr.sort((a,b)=>{
-        if((b.score ?? 0) !== (a.score ?? 0)) return (b.score ?? 0) - (a.score ?? 0);
-        return (a.timeSec ?? 999999) - (b.timeSec ?? 999999);
-      });
+  buttons.forEach((b, idx) => {
+    b.disabled = true;
+    if (idx === correct) {
+      b.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+      b.style.color = '#000';
+      b.innerHTML += ' ✔';
     }
-
-    function escapeHtml(s){
-      return String(s ?? "").replace(/[&<>"']/g, (m)=>({
-        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-      }[m]));
+    if (idx === i && i !== correct) {
+      b.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+      b.style.color = '#fff';
+      b.innerHTML += ' ✖';
     }
+  });
 
-    function renderBoard(rows){
-      $board.innerHTML = "";
-      $count.textContent = String(rows.length);
+  if (i === correct) score++;
+  nextBtn.style.display = 'block';
+}
 
-      if(rows.length === 0){
-        const li = document.createElement("li");
-        li.className = "li";
-        li.innerHTML = `<span class="muted">還沒有人交卷。可以先讓大家掃 QR code。</span>`;
-        $board.appendChild(li);
-        return;
-      }
+function nextQuestion() {
+  index++;
+  if (index < questions.length) {
+    loadQuestion();
+  } else {
+    document.getElementById('game').style.display = 'none';
+    document.getElementById('end').style.display = 'block';
+    document.getElementById('score').textContent = score;
+  }
+}
 
-      rows.slice(0, 30).forEach((r, i)=>{
-        const li = document.createElement("li");
-        li.className = "li";
-        li.innerHTML = `
-          <div>
-            <div><b class="mono">#${i+1}</b> ${escapeHtml(r.name || "（未命名）")}</div>
-            <div class="muted mono">${r.score ?? 0}/5 · ${(r.timeSec ?? 0)}s</div>
-          </div>
-          <div class="muted mono">${new Date(r.clientSubmittedAt || Date.now()).toLocaleTimeString()}</div>
-        `;
-        $board.appendChild(li);
-      });
-    }
-
-    function playerUrlFor(sid){
-      const base = location.href.replace(/host\.html.*$/i, "");
-      return `${base}player.html?s=${encodeURIComponent(sid)}`;
-    }
-
-    function renderQR(url){
-      const el = document.getElementById("qrcode");
-      el.innerHTML = "";
-      // eslint-disable-next-line no-undef
-      new QRCode(el, { text: url, width: 220, height: 220 });
-      $link.textContent = url;
-    }
-
-    function watch(sid){
-      if(unsub){
-        try{ unsub(); }catch(e){}
-      }
-      const submissionsRef = ref(db, `sessions/${sid}/submissions`);
-      unsub = onValue(submissionsRef, (snap)=>{
-        const val = snap.val() || {};
-        const arr = Object.values(val);
-        renderBoard(sortResults(arr));
-      });
-      renderQR(playerUrlFor(sid));
-    }
-
-    $apply.onclick = () => {
-      const s = ($sessionId.value || "").trim();
-      if(!s){ alert("請輸入場次代碼"); return; }
-      sessionId = s;
-      watch(sessionId);
-    };
-
-    $reset.onclick = async () => {
-      if(!sessionId){ alert("先套用場次"); return; }
-      if(!confirm(`確定清空場次「${sessionId}」的所有成績？`)) return;
-      await remove(ref(db, `sessions/${sessionId}/submissions`));
-    };
-
-    // 預設場次
-    const d = new Date();
-    const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    $sessionId.value = `${ymd}-TAILYA`;
-
-    // 打開就先產生 QR 並開始監聽
-    sessionId = $sessionId.value;
-    watch(sessionId);
-  </script>
+loadQuestion();
+</script>
 </body>
 </html>
