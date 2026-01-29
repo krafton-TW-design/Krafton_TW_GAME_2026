@@ -1,4 +1,3 @@
-host.html
 <!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -47,6 +46,10 @@ host.html
       </div>
 
       <ul class="list" id="board"></ul>
+
+      <div class="muted" style="margin-top:10px">
+        若「套用場次」沒反應，請看 Console 是否有 firebaseConfig 或權限錯誤。
+      </div>
     </div>
 
     <div class="card">
@@ -70,36 +73,27 @@ host.html
     import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
-    const firebaseConfig = {
-      // TODO: 貼上你自己的 firebaseConfig
-    	// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    // ✅ TODO：把這段換成你 Firebase Console 的 Web app 設定
+    import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, getDocs } from 'firebase/firestore/lite';
+// Follow this pattern to import other Firebase services
+// import { } from 'firebase/<service>';
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// TODO: Replace the following with your app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDLbTpudq0IiS9Usb4Gj6s93YfShCRl6rY",
-  authDomain: "krafton-tw.firebaseapp.com",
-  databaseURL: "https://krafton-tw-default-rtdb.firebaseio.com",
-  projectId: "krafton-tw",
-  storageBucket: "krafton-tw.firebasestorage.app",
-  messagingSenderId: "356827052139",
-  appId: "1:356827052139:web:49962a5f80327144bc992e",
-  measurementId: "G-XEW4Q3R3CB"
+  //...
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "YOUR_PROJECT",
-      appId: "YOUR_APP_ID"
-    };
+const db = getFirestore(app);
+
+// Get a list of cities from your database
+async function getCities(db) {
+  const citiesCol = collection(db, 'cities');
+  const citySnapshot = await getDocs(citiesCol);
+  const cityList = citySnapshot.docs.map(doc => doc.data());
+  return cityList;
+}
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
@@ -121,6 +115,12 @@ const analytics = getAnalytics(app);
         if(b.score !== a.score) return b.score - a.score;
         return a.timeSec - b.timeSec;
       });
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, (m)=>({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+      }[m]));
     }
 
     function renderBoard(rows){
@@ -149,12 +149,6 @@ const analytics = getAnalytics(app);
       });
     }
 
-    function escapeHtml(s){
-      return String(s).replace(/[&<>"']/g, (m)=>({
-        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-      }[m]));
-    }
-
     function playerUrlFor(sessionId){
       // 假設 player.html 和 host.html 放同個資料夾
       const base = location.href.replace(/host\.html.*$/i, "");
@@ -162,34 +156,27 @@ const analytics = getAnalytics(app);
     }
 
     function renderQR(url){
-      document.getElementById("qrcode").innerHTML = "";
+      const el = document.getElementById("qrcode");
+      el.innerHTML = "";
       // eslint-disable-next-line no-undef
-      new QRCode(document.getElementById("qrcode"), { text: url, width: 220, height: 220 });
+      new QRCode(el, { text: url, width: 220, height: 220 });
       $link.textContent = url;
     }
 
-    function watch(sessionId) {
-  if (unsub) {
-    try { unsub(); } catch(e) {}
-  }
+    function watch(sessionId){
+      if(unsub){
+        try{ unsub(); }catch(e){}
+      }
 
-  const submissionsRef = ref(db, "sessions/" + sessionId + "/submissions");
+      const submissionsRef = ref(db, `sessions/${sessionId}/submissions`);
+      unsub = onValue(submissionsRef, (snap)=>{
+        const val = snap.val() || {};
+        const arr = Object.values(val);
+        renderBoard(sortResults(arr));
+      });
 
-  unsub = onValue(submissionsRef, function(snapshot) {
-    const val = snapshot.val() || {};
-    const arr = Object.values(val);
-
-    arr.sort(function(a, b) {
-      if (b.score !== a.score) return b.score - a.score;
-      return a.timeSec - b.timeSec;
-    });
-
-    renderBoard(arr);
-  });
-
-  const url = playerUrlFor(sessionId);
-  renderQR(url);
-}
+      renderQR(playerUrlFor(sessionId));
+    }
 
     $apply.onclick = () => {
       const s = ($sessionId.value || "").trim();
@@ -204,11 +191,13 @@ const analytics = getAnalytics(app);
       await remove(ref(db, `sessions/${sessionId}/submissions`));
     };
 
-    // 預設給一個場次（你也可以改成自動帶入日期）
+    // 預設給一個場次（自動帶入日期）
     const d = new Date();
     const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
     $sessionId.value = `${ymd}-TAILYA`;
+
+    // 預設先套用，打開就有 QR
+    watch($sessionId.value);
   </script>
 </body>
 </html>
-
