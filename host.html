@@ -74,26 +74,28 @@
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
     // ✅ TODO：把這段換成你 Firebase Console 的 Web app 設定
-    import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs } from 'firebase/firestore/lite';
-// Follow this pattern to import other Firebase services
-// import { } from 'firebase/<service>';
+    // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-// TODO: Replace the following with your app's Firebase configuration
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  //...
+  apiKey: "AIzaSyDLbTpudq0IiS9Usb4Gj6s93YfShCRl6rY",
+  authDomain: "krafton-tw.firebaseapp.com",
+  databaseURL: "https://krafton-tw-default-rtdb.firebaseio.com",
+  projectId: "krafton-tw",
+  storageBucket: "krafton-tw.firebasestorage.app",
+  messagingSenderId: "356827052139",
+  appId: "1:356827052139:web:49962a5f80327144bc992e",
+  measurementId: "G-XEW4Q3R3CB"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// Get a list of cities from your database
-async function getCities(db) {
-  const citiesCol = collection(db, 'cities');
-  const citySnapshot = await getDocs(citiesCol);
-  const cityList = citySnapshot.docs.map(doc => doc.data());
-  return cityList;
-}
+const analytics = getAnalytics(app);
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
